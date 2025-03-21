@@ -14,6 +14,7 @@ display_banner() {
     echo "Join us: https://t.me/Web3loverz"
     sleep 1
 }
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -43,12 +44,18 @@ check_status "installing essential dependencies"
 
 # Check and install Go (version 1.21.6)
 if ! command -v go >/dev/null 2>&1 || [ "$(go version | cut -d' ' -f3 | cut -d'.' -f2)" -lt 21 ]; then
-    echo "Installing Go 1.21.6..."
+    echo "Go is not installed or version is lower than 1.21.6. Installing Go 1.21.6..."
+
+    # Download and install Go 1.21.6
     wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
     sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
     rm go1.21.6.linux-amd64.tar.gz
+
+    # Add Go to PATH
     echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
     source ~/.bashrc
+
+    # Verify installation
     go version
     check_status "installing Go"
 else
