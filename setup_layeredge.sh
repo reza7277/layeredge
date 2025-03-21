@@ -47,6 +47,10 @@ echo "Installing Risc0 Toolchain..."
 curl -L https://risczero.com/install | bash
 source ~/.bashrc
 
+# Add Risc0 binary path to the system PATH
+echo 'export PATH=$PATH:/root/.risc0/bin' >> ~/.bashrc
+source ~/.bashrc
+
 # Verify Risc0 installation
 rzup --help || { echo "Risc0 toolchain installation failed"; exit 1; }
 
