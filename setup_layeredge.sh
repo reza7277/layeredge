@@ -54,7 +54,7 @@ if ! command -v go >/dev/null 2>&1 || [ "$(go version | cut -d' ' -f3 | cut -d'.
     sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
     rm go1.21.6.linux-amd64.tar.gz
     echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-    source ~/.bashrc
+    source ~/.bashrc  # Apply the changes to .bashrc after Go installation
     go version
     check_status "Go installation"
 else
@@ -78,7 +78,7 @@ fi
 echo "Installing RISC0 toolchain..."
 curl -L https://risczero.com/install | bash
 echo 'export PATH=$PATH:$HOME/.risc0/bin' >> ~/.bashrc
-source ~/.bashrc
+source ~/.bashrc  # Apply the changes to .bashrc after RISC0 installation
 rzup install
 check_status "RISC0 toolchain installation"
 
