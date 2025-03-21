@@ -30,13 +30,32 @@ echo "Updating system and installing dependencies..."
 apt update && apt upgrade -y
 apt install -y build-essential git curl jq unzip wget tmux software-properties-common lsof
 
-# Install Go 1.23.1 (latest assumed stable version)
+# Install Go 1.23.1 with explicit PATH setup
 echo "Installing Go 1.23.1..."
 wget -q https://go.dev/dl/go1.23.1.linux-amd64.tar.gz
-rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.1.linux-amd64.tar.gz
+if [ $? -ne 0 ]; then
+    echo "Failed to download Go 1.23.1"
+    exit 1
+fi
+rm -rf /usr/local/go
+tar -C /usr/local -xzf go1.23.1.linux-amd64.tar.gz
+if [ $? -ne 0 ]; then
+    echo "Failed to extract Go 1.23.1"
+    exit 1
+fi
+
+# Set PATH explicitly for this session
+export PATH=$PATH:/usr/local/go/bin
+# Persist PATH for future sessions
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-source ~/.bashrc
+
+# Verify Go installation
+if ! command -v go >/dev/null 2>&1; then
+    echo "Go installation failed: 'go' command not found"
+    exit 1
+fi
 go version || { echo "Go installation failed"; exit 1; }
+echo "Go installed successfully: $(go version)"
 
 # Install Rust
 echo "Installing Rust..."
