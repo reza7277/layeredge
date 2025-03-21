@@ -1,5 +1,6 @@
 #!/bin/bash
-# Logo installation script
+
+# Display a banner with animation
 display_banner() {
     echo "
 ██████╗ ███████╗███████╗ █████╗     ███████╗██████╗ ███████╗███████╗
@@ -15,49 +16,47 @@ display_banner() {
     sleep 1
 }
 
-# Colors for output
+# Call the banner function
+display_banner
+sleep 5
+
+# Define colors for output messages
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
-# Function to check if a command was successful
+# Function to check command execution status
 check_status() {
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ $1 successful${NC}"
+        echo -e "${GREEN}✓ $1 completed successfully${NC}"
     else
-        echo -e "${RED}✗ Failed $1${NC}"
+        echo -e "${RED}✗ $1 failed${NC}"
         exit 1
     fi
 }
 
-echo "Starting automatic installation of light-node and its dependencies..."
+echo "Starting automatic installation of Light Node and dependencies..."
 
 # Update the system
 echo "Updating the system..."
 sudo apt update && sudo apt upgrade -y
-check_status "system update"
+check_status "System update"
 
 # Install essential dependencies (git, curl, screen)
 echo "Installing essential dependencies..."
 sudo apt install -y git curl screen
-check_status "installing essential dependencies"
+check_status "Essential dependencies installation"
 
 # Check and install Go (version 1.21.6)
 if ! command -v go >/dev/null 2>&1 || [ "$(go version | cut -d' ' -f3 | cut -d'.' -f2)" -lt 21 ]; then
-    echo "Go is not installed or version is lower than 1.21.6. Installing Go 1.21.6..."
-
-    # Download and install Go 1.21.6
+    echo "Installing Go 1.21.6..."
     wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
     sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
     rm go1.21.6.linux-amd64.tar.gz
-
-    # Add Go to PATH
     echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
     source ~/.bashrc
-
-    # Verify installation
     go version
-    check_status "installing Go"
+    check_status "Go installation"
 else
     echo -e "${GREEN}Go $(go version) is already installed and meets the requirements (1.21.6 or higher)${NC}"
 fi
@@ -70,7 +69,7 @@ if ! command -v rustc >/dev/null 2>&1 || [ "$(rustc --version | cut -d' ' -f2 | 
     rustup install 1.85.1
     rustup default 1.85.1
     rustc --version
-    check_status "installing Rust"
+    check_status "Rust installation"
 else
     echo -e "${GREEN}Rust $(rustc --version) is already installed and meets the requirements (1.85.1)${NC}"
 fi
@@ -81,31 +80,30 @@ curl -L https://risczero.com/install | bash
 echo 'export PATH=$PATH:$HOME/.risc0/bin' >> ~/.bashrc
 source ~/.bashrc
 rzup install
-check_status "installing RISC0 toolchain"
+check_status "RISC0 toolchain installation"
 
-# Clone light-node repository
+# Clone the Light Node repository
 if [ ! -d "~/light-node" ]; then
-    echo "Cloning light-node repository..."
+    echo "Cloning Light Node repository..."
     git clone https://github.com/Layer-Edge/light-node.git ~/light-node
-    check_status "cloning repository"
+    check_status "Repository cloning"
 fi
 
-# Navigate to light-node folder
+# Navigate to the light-node folder
 cd ~/light-node || exit
 
-# Request private key from user and remove 0x if present
-echo "Enter private key for light-node (without '0x' prefix, leave blank for default 'cli-node-private-key'):"
+# Prompt the user for the private key and remove "0x" if present
+echo "Enter your private key for Light Node (without '0x' prefix, leave empty for default 'cli-node-private-key'):"
 read -r user_private_key
 if [ -z "$user_private_key" ]; then
     user_private_key="cli-node-private-key"
     echo -e "${RED}Using default PRIVATE_KEY='cli-node-private-key'${NC}"
 else
-    # Remove 0x prefix if entered by user
     user_private_key=$(echo "$user_private_key" | sed 's/^0x//')
     echo -e "${GREEN}Private key received: $user_private_key${NC}"
 fi
 
-# Create .env file with configuration
+# Create .env file for configuration
 echo "Creating .env file in ~/light-node..."
 cat <<EOL > ~/light-node/.env
 GRPC_URL=grpc.testnet.layeredge.io:9090
@@ -115,32 +113,32 @@ API_REQUEST_TIMEOUT=100
 POINTS_API=https://light-node.layeredge.io
 PRIVATE_KEY='$user_private_key'
 EOL
-check_status "creating .env file"
+check_status "Creating .env file"
 
-# Navigate to risc0-merkle-service folder
+# Navigate to risc0-merkle-service directory
 cd ~/light-node/risc0-merkle-service || exit
 
-# Run risc0-merkle-service in screen
-echo "Running risc0-merkle-service..."
+# Run risc0-merkle-service in a screen session
+echo "Starting risc0-merkle-service..."
 screen -dmS risc0-merkle bash -c "cargo build && cargo run; exec bash"
-check_status "running risc0-merkle-service"
+check_status "Running risc0-merkle-service"
 
-# Wait a few minutes for risc0-merkle-service to be ready
+# Wait 5 minutes for risc0-merkle-service to initialize
 echo "Waiting 5 minutes for risc0-merkle-service..."
 sleep 300
 
-# Ensure we are back in the light-node directory before running light-node
+# Ensure we are back in the light-node directory before running Light Node
 cd ~/light-node || exit
 
-# Run light-node in screen
-echo "Building and running light-node..."
+# Build and run Light Node in a screen session
+echo "Building and running Light Node..."
 go build
-check_status "building light-node"
+check_status "Building Light Node"
 screen -dmS light-node bash -c "./light-node; exec bash"
-check_status "running light-node"
+check_status "Running Light Node"
 
-echo -e "${GREEN}Automatic installation completed!${NC}"
-echo "Check status with:"
+echo -e "${GREEN}Automatic installation complete!${NC}"
+echo "Check the status using:"
 echo "  - screen -r risc0-merkle"
 echo "  - screen -r light-node"
 echo "Exit screen with Ctrl+A then D"
