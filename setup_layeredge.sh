@@ -24,10 +24,10 @@ echo "Updating system and installing dependencies..."
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y build-essential git curl jq unzip wget tmux software-properties-common
 
-# Install Go (1.18 or higher)
-echo "Installing Go..."
-wget https://go.dev/dl/go1.18.linux-amd64.tar.gz
-sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.18.linux-amd64.tar.gz
+# Install Go (1.23.1)
+echo "Installing Go version 1.23.1..."
+wget https://dl.google.com/go/go1.23.1.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.23.1.linux-amd64.tar.gz
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
 
