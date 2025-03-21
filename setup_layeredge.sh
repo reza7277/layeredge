@@ -16,25 +16,29 @@ display_banner() {
     sleep 1
 }
 
-# Call the function to display the banner
+# Call the banner function
 display_banner
 
-# Update & Install Dependencies
-echo "Updating system and installing dependencies..."
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y build-essential git curl jq unzip wget tmux software-properties-common
+# Check for root privileges
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root or with sudo"
+    exit 1
+fi
 
-# Install Go (1.18 or higher)
-echo "Installing Go..."
-wget https://go.dev/dl/go1.18.linux-amd64.tar.gz
-sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.18.linux-amd64.tar.gz
+# Update system and install dependencies
+echo "Updating system and installing dependencies..."
+apt update && apt upgrade -y
+apt install -y build-essential git curl jq unzip wget tmux software-properties-common lsof
+
+# Install Go 1.23.1 (latest assumed stable version)
+echo "Installing Go 1.23.1..."
+wget -q https://go.dev/dl/go1.23.1.linux-amd64.tar.gz
+rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.1.linux-amd64.tar.gz
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
-
-# Verify Go installation
 go version || { echo "Go installation failed"; exit 1; }
 
-# Install Rust (1.81.0 or higher)
+# Install Rust
 echo "Installing Rust..."
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source $HOME/.cargo/env
@@ -44,20 +48,26 @@ rustc --version || { echo "Rust installation failed"; exit 1; }
 echo "Installing Risc0 Toolchain..."
 curl -L https://risczero.com/install | bash
 source ~/.bashrc
-rzup install || { echo "Risc0 toolchain installation failed"; exit 1; }
+rzup install || { echo "Risc0 Toolchain installation failed"; exit 1; }
 
-# Clone Light Node Repository
+# Clean up and clone the repository
 echo "Cloning LayerEdge Light Node repository..."
-git clone https://github.com/Layer-Edge/light-node.git || { echo "Git clone failed"; exit 1; }
-cd light-node
+rm -rf ~/light-node  # Remove old version if exists
+git clone https://github.com/Layer-Edge/light-node.git ~/light-node || { echo "Git clone failed"; exit 1; }
+cd ~/light-node || exit 1
 
-# Get User Input for Configuration
+# Fix Go version in go.mod
+echo "Fixing Go version in go.mod..."
+[ -f go.mod ] && sed -i 's/go 1.23.1/go 1.23/' go.mod
+
+# Get user input for configuration
 echo "Enter your private key: "
 read -s PRIVATE_KEY
 echo "Enter your Wallet Address: "
 read WALLET_ADDRESS
 
-# Set Environment Variables
+# Create environment file (.env)
+echo "Saving configuration..."
 cat <<EOF > .env
 GRPC_URL=grpc.testnet.layeredge.io:9090
 CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
@@ -65,27 +75,41 @@ ZK_PROVER_URL=http://127.0.0.1:3001
 API_REQUEST_TIMEOUT=100
 POINTS_API=http://127.0.0.1:8080
 PRIVATE_KEY=$PRIVATE_KEY
+WALLET_ADDRESS=$WALLET_ADDRESS
 EOF
 
-echo "Configuration saved. Starting Merkle Service..."
+# Create log directory
+mkdir -p /var/log/light-node
+touch /var/log/light-node.log
 
-# Start Merkle Service
-cd risc0-merkle-service
-cargo build && cargo run &
+# Check and free port 3001 if in use
+echo "Checking port 3001..."
+PORT_PID=$(lsof -t -i:3001)
+if [ -n "$PORT_PID" ]; then
+    echo "Port 3001 is in use by PID $PORT_PID. Killing it..."
+    kill -9 "$PORT_PID"
+    sleep 2
+fi
 
-# Wait for Merkle Service to Initialize
+# Build and start Merkle Service
+echo "Building and starting Merkle Service..."
+cd ~/light-node/risc0-merkle-service || exit 1
+tmux new-session -d -s merkle-service 'cargo build --release && cargo run --release >> /var/log/light-node.log 2>&1'
+
+# Wait for Merkle Service to initialize
 sleep 10
 
-# Build & Run Light Node
-echo "Building and running LayerEdge Light Node..."
-cd ../light-node
-go build || { echo "Go build failed"; exit 1; }
-./light-node &
+# Build and run Light Node
+echo "Building and running Light Node..."
+cd ~/light-node/light-node || exit 1
+go build -v || { echo "Light Node build failed"; exit 1; }
+tmux new-session -d -s light-node './light-node >> /var/log/light-node.log 2>&1'
 
-echo "Light Node setup complete!"
-echo "Monitoring logs: tail -f /var/log/light-node.log"
+echo "Light Node setup completed successfully!"
+echo "Monitor logs with: tail -f /var/log/light-node.log"
 
-# Additional steps for manual server start (in case user wants to do it manually)
-echo "To run the servers manually, use these commands in separate terminals:"
-echo "1. Run Merkle Service: cd risc0-merkle-service && cargo build && cargo run"
-echo "2. Run Light Node: cd light-node && go build && ./light-node"
+# Manual run instructions
+echo "To run the servers manually, use these commands:"
+echo "1. Merkle Service: tmux attach-session -t merkle-service"
+echo "2. Light Node: tmux attach-session -t light-node"
+echo "Check logs: tail -f /var/log/light-node.log"
