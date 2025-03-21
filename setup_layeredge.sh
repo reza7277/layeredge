@@ -46,21 +46,26 @@ sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.18.linux-amd64.tar.
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
 
-go version
+# Verify Go installation
+go version || { echo "Go installation failed"; exit 1; }
 
 # Install Rust
 echo "Installing Rust..."
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source $HOME/.cargo/env
-rustc --version
+rustc --version || { echo "Rust installation failed"; exit 1; }
 
 # Install Risc0 Toolchain
 echo "Installing Risc0 Toolchain..."
-curl -L https://risczero.com/install | bash && rzup install
+curl -L https://risczero.com/install | bash
+source ~/.bashrc
+
+# Verify Risc0 installation
+rzup --help || { echo "Risc0 toolchain installation failed"; exit 1; }
 
 # Clone Full Node Repository
 echo "Cloning LayerEdge Full Node repository..."
-git clone https://github.com/Layer-Edge/full-node.git
+git clone https://github.com/Layer-Edge/full-node.git || { echo "Git clone failed"; exit 1; }
 cd full-node
 
 # Get User Input for Configuration
@@ -91,7 +96,7 @@ sleep 10
 # Build & Run Full Node
 echo "Building and running LayerEdge Full Node..."
 cd ../full-node
-go build
+go build || { echo "Go build failed"; exit 1; }
 ./full-node &
 
 echo "Full Node setup complete!"
