@@ -44,6 +44,7 @@ rustc --version || { echo "Rust installation failed"; exit 1; }
 echo "Installing Risc0 Toolchain..."
 curl -L https://risczero.com/install | bash
 source ~/.bashrc
+export PATH=$PATH:/root/.risc0/bin
 rzup install || { echo "Risc0 toolchain installation failed"; exit 1; }
 
 # Clone Light Node Repository
