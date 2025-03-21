@@ -77,8 +77,19 @@ rustc --version || { echo "Rust installation failed"; exit 1; }
 # Install Risc0 Toolchain
 echo "Installing Risc0 Toolchain..."
 curl -L https://risczero.com/install | bash
+# Add Risc0 bin to PATH for this session
+export PATH=$PATH:/root/.risc0/bin
+# Persist PATH for future sessions
+echo 'export PATH=$PATH:/root/.risc0/bin' >> ~/.bashrc
+# Source the updated bashrc to ensure rzup is available
 source ~/.bashrc
+# Verify rzup is available
+if [ ! -x /root/.risc0/bin/rzup ]; then
+    echo "rzup binary not found or not executable at /root/.risc0/bin/rzup"
+    exit 1
+fi
 rzup install || { echo "Risc0 Toolchain installation failed"; exit 1; }
+echo "Risc0 Toolchain installed successfully"
 
 # Clean up and clone the repository
 echo "Cloning LayerEdge Light Node repository..."
