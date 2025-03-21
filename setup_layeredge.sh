@@ -16,59 +16,25 @@ display_banner() {
     sleep 1
 }
 
-# Call the banner function
+# Call the function to display the banner
 display_banner
 
-# Check for root privileges
-if [ "$EUID" -ne 0 ]; then
-    echo "Please run as root or with sudo"
-    exit 1
-fi
-
-# Update system and install dependencies
+# Update & Install Dependencies
 echo "Updating system and installing dependencies..."
-apt update && apt upgrade -y
-apt install -y build-essential git curl jq unzip wget tmux software-properties-common lsof
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y build-essential git curl jq unzip wget tmux software-properties-common
 
-# Install Go 1.23.1 with detailed checks
-echo "Installing Go 1.23.1..."
-wget -q https://go.dev/dl/go1.23.1.linux-amd64.tar.gz
-if [ $? -ne 0 ]; then
-    echo "Failed to download Go 1.23.1 tarball"
-    exit 1
-fi
-echo "Download successful, tarball size:"
-ls -lh go1.23.1.linux-amd64.tar.gz
-
-rm -rf /usr/local/go
-tar -C /usr/local -xzf go1.23.1.linux-amd64.tar.gz
-if [ $? -ne 0 ]; then
-    echo "Failed to extract Go 1.23.1 to /usr/local/go"
-    exit 1
-fi
-echo "Extraction successful, checking /usr/local/go/bin:"
-ls -l /usr/local/go/bin/
-
-# Ensure the go binary is executable
-chmod +x /usr/local/go/bin/go 2>/dev/null
-
-# Set PATH explicitly for this session
-export PATH=$PATH:/usr/local/go/bin
-echo "Updated PATH: $PATH"
-
-# Persist PATH for future sessions
+# Install Go (1.18 or higher)
+echo "Installing Go..."
+wget https://go.dev/dl/go1.18.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.18.linux-amd64.tar.gz
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+source ~/.bashrc
 
-# Verify Go installation using full path
-if [ ! -x /usr/local/go/bin/go ]; then
-    echo "Go binary not found or not executable at /usr/local/go/bin/go"
-    exit 1
-fi
+# Verify Go installation
+go version || { echo "Go installation failed"; exit 1; }
 
-/usr/local/go/bin/go version || { echo "Go installation failed: version check failed"; exit 1; }
-echo "Go installed successfully: $(/usr/local/go/bin/go version)"
-
-# Install Rust
+# Install Rust (1.81.0 or higher)
 echo "Installing Rust..."
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source $HOME/.cargo/env
@@ -77,38 +43,21 @@ rustc --version || { echo "Rust installation failed"; exit 1; }
 # Install Risc0 Toolchain
 echo "Installing Risc0 Toolchain..."
 curl -L https://risczero.com/install | bash
-# Add Risc0 bin to PATH for this session
-export PATH=$PATH:/root/.risc0/bin
-# Persist PATH for future sessions
-echo 'export PATH=$PATH:/root/.risc0/bin' >> ~/.bashrc
-# Source the updated bashrc to ensure rzup is available
 source ~/.bashrc
-# Verify rzup is available
-if [ ! -x /root/.risc0/bin/rzup ]; then
-    echo "rzup binary not found or not executable at /root/.risc0/bin/rzup"
-    exit 1
-fi
-rzup install || { echo "Risc0 Toolchain installation failed"; exit 1; }
-echo "Risc0 Toolchain installed successfully"
+rzup install || { echo "Risc0 toolchain installation failed"; exit 1; }
 
-# Clean up and clone the repository
+# Clone Light Node Repository
 echo "Cloning LayerEdge Light Node repository..."
-rm -rf ~/light-node  # Remove old version if exists
-git clone https://github.com/Layer-Edge/light-node.git ~/light-node || { echo "Git clone failed"; exit 1; }
-cd ~/light-node || exit 1
+git clone https://github.com/Layer-Edge/light-node.git || { echo "Git clone failed"; exit 1; }
+cd light-node
 
-# Fix Go version in go.mod
-echo "Fixing Go version in go.mod..."
-[ -f go.mod ] && sed -i 's/go 1.23.1/go 1.23/' go.mod
-
-# Get user input for configuration
+# Get User Input for Configuration
 echo "Enter your private key: "
 read -s PRIVATE_KEY
 echo "Enter your Wallet Address: "
 read WALLET_ADDRESS
 
-# Create environment file (.env)
-echo "Saving configuration..."
+# Set Environment Variables
 cat <<EOF > .env
 GRPC_URL=grpc.testnet.layeredge.io:9090
 CONTRACT_ADDR=cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709
@@ -116,41 +65,27 @@ ZK_PROVER_URL=http://127.0.0.1:3001
 API_REQUEST_TIMEOUT=100
 POINTS_API=http://127.0.0.1:8080
 PRIVATE_KEY=$PRIVATE_KEY
-WALLET_ADDRESS=$WALLET_ADDRESS
 EOF
 
-# Create log directory
-mkdir -p /var/log/light-node
-touch /var/log/light-node.log
+echo "Configuration saved. Starting Merkle Service..."
 
-# Check and free port 3001 if in use
-echo "Checking port 3001..."
-PORT_PID=$(lsof -t -i:3001)
-if [ -n "$PORT_PID" ]; then
-    echo "Port 3001 is in use by PID $PORT_PID. Killing it..."
-    kill -9 "$PORT_PID"
-    sleep 2
-fi
+# Start Merkle Service
+cd risc0-merkle-service
+cargo build && cargo run &
 
-# Build and start Merkle Service
-echo "Building and starting Merkle Service..."
-cd ~/light-node/risc0-merkle-service || exit 1
-tmux new-session -d -s merkle-service 'cargo build --release && cargo run --release >> /var/log/light-node.log 2>&1'
-
-# Wait for Merkle Service to initialize
+# Wait for Merkle Service to Initialize
 sleep 10
 
-# Build and run Light Node
-echo "Building and running Light Node..."
-cd ~/light-node/light-node || exit 1
-/usr/local/go/bin/go build -v || { echo "Light Node build failed"; exit 1; }
-tmux new-session -d -s light-node './light-node >> /var/log/light-node.log 2>&1'
+# Build & Run Light Node
+echo "Building and running LayerEdge Light Node..."
+cd ../light-node
+go build || { echo "Go build failed"; exit 1; }
+./light-node &
 
-echo "Light Node setup completed successfully!"
-echo "Monitor logs with: tail -f /var/log/light-node.log"
+echo "Light Node setup complete!"
+echo "Monitoring logs: tail -f /var/log/light-node.log"
 
-# Manual run instructions
-echo "To run the servers manually, use these commands:"
-echo "1. Merkle Service: tmux attach-session -t merkle-service"
-echo "2. Light Node: tmux attach-session -t light-node"
-echo "Check logs: tail -f /var/log/light-node.log"
+# Additional steps for manual server start (in case user wants to do it manually)
+echo "To run the servers manually, use these commands in separate terminals:"
+echo "1. Run Merkle Service: cd risc0-merkle-service && cargo build && cargo run"
+echo "2. Run Light Node: cd light-node && go build && ./light-node"
