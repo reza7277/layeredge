@@ -30,32 +30,43 @@ echo "Updating system and installing dependencies..."
 apt update && apt upgrade -y
 apt install -y build-essential git curl jq unzip wget tmux software-properties-common lsof
 
-# Install Go 1.23.1 with explicit PATH setup
+# Install Go 1.23.1 with detailed checks
 echo "Installing Go 1.23.1..."
 wget -q https://go.dev/dl/go1.23.1.linux-amd64.tar.gz
 if [ $? -ne 0 ]; then
-    echo "Failed to download Go 1.23.1"
+    echo "Failed to download Go 1.23.1 tarball"
     exit 1
 fi
+echo "Download successful, tarball size:"
+ls -lh go1.23.1.linux-amd64.tar.gz
+
 rm -rf /usr/local/go
 tar -C /usr/local -xzf go1.23.1.linux-amd64.tar.gz
 if [ $? -ne 0 ]; then
-    echo "Failed to extract Go 1.23.1"
+    echo "Failed to extract Go 1.23.1 to /usr/local/go"
     exit 1
 fi
+echo "Extraction successful, checking /usr/local/go/bin:"
+ls -l /usr/local/go/bin/
+
+# Ensure the go binary is executable
+chmod +x /usr/local/go/bin/go 2>/dev/null
 
 # Set PATH explicitly for this session
 export PATH=$PATH:/usr/local/go/bin
+echo "Updated PATH: $PATH"
+
 # Persist PATH for future sessions
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 
-# Verify Go installation
-if ! command -v go >/dev/null 2>&1; then
-    echo "Go installation failed: 'go' command not found"
+# Verify Go installation using full path
+if [ ! -x /usr/local/go/bin/go ]; then
+    echo "Go binary not found or not executable at /usr/local/go/bin/go"
     exit 1
 fi
-go version || { echo "Go installation failed"; exit 1; }
-echo "Go installed successfully: $(go version)"
+
+/usr/local/go/bin/go version || { echo "Go installation failed: version check failed"; exit 1; }
+echo "Go installed successfully: $(/usr/local/go/bin/go version)"
 
 # Install Rust
 echo "Installing Rust..."
@@ -121,7 +132,7 @@ sleep 10
 # Build and run Light Node
 echo "Building and running Light Node..."
 cd ~/light-node/light-node || exit 1
-go build -v || { echo "Light Node build failed"; exit 1; }
+/usr/local/go/bin/go build -v || { echo "Light Node build failed"; exit 1; }
 tmux new-session -d -s light-node './light-node >> /var/log/light-node.log 2>&1'
 
 echo "Light Node setup completed successfully!"
