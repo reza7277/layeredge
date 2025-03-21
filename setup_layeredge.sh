@@ -83,4 +83,9 @@ go build || { echo "Go build failed"; exit 1; }
 ./light-node &
 
 echo "Light Node setup complete!"
-echo "Monitor logs using: tail -f /var/log/light-node.log"
+echo "Monitoring logs: tail -f /var/log/light-node.log"
+
+# Additional steps for manual server start (in case user wants to do it manually)
+echo "To run the servers manually, use these commands in separate terminals:"
+echo "1. Run Merkle Service: cd risc0-merkle-service && cargo build && cargo run"
+echo "2. Run Light Node: cd light-node && go build && ./light-node"
