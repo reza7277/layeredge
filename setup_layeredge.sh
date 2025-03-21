@@ -10,23 +10,10 @@ display_banner() {
 ██║  ██║███████╗███████╗██║  ██║       ██║  ███████╗   ██║     ██║  
 ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝       ╚═╝  ╚══════╝   ╚═╝     ╚═╝  
 "
-    
-    # Typing effect for name
-    echo -n "LayerEdge Node :)"
-    for ((i=0; i<${#name}; i++)); do
-        echo -n "${name:$i:1}"
-        sleep 0.2
-    done
-    echo ""
 
-    echo -n "Created by: "
-    name="Reza"
-    for ((i=0; i<${#name}; i++)); do
-        echo -n "${name:$i:1}"
-        sleep 0.2
-    done
-    echo ""
-    
+    # Typing effect for name
+    echo "LayerEdge Node :)"
+    echo "Created by: Reza"
     echo "Join us: https://t.me/Web3loverz"
     sleep 1
 }
@@ -41,8 +28,8 @@ sudo apt install -y build-essential git curl jq unzip wget tmux software-propert
 
 # Install Go
 echo "Installing Go..."
-wget https://go.dev/dl/go1.18.linux-amd64.tar.gz
-sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.18.linux-amd64.tar.gz
+wget https://go.dev/dl/go1.20.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.20.linux-amd64.tar.gz
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
 
