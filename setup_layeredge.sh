@@ -12,6 +12,7 @@ display_banner() {
 "
     
     # Typing effect for name
+    echo -n "LayerEdge Node :)"
     echo -n "Created by: "
     name="Reza"
     for ((i=0; i<${#name}; i++)); do
